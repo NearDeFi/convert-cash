@@ -7,6 +7,7 @@ use near_sdk::{
 
 mod ecdsa;
 mod external;
+mod store;
 mod utils;
 
 #[near(serializers = [json, borsh])]
@@ -21,6 +22,7 @@ pub struct Contract {
     pub owner_id: AccountId,
     pub approved_codehashes: IterableSet<String>,
     pub worker_by_account_id: IterableMap<AccountId, Worker>,
+    pub deposit_by_evm_address: IterableMap<String, store::Deposit>,
 }
 
 #[near]
@@ -32,6 +34,7 @@ impl Contract {
             owner_id,
             approved_codehashes: IterableSet::new(b"a"),
             worker_by_account_id: IterableMap::new(b"b"),
+            deposit_by_evm_address: IterableMap::new(b"c"),
         }
     }
 

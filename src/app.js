@@ -2,7 +2,12 @@ import { serve } from '@hono/node-server';
 import { cors } from 'hono/cors';
 import { Hono } from 'hono';
 import { createHash } from 'node:crypto';
-import { getAgentAccount, signWithAgent } from '@neardefi/shade-agent-js';
+import {
+    contractCall,
+    contractView,
+    getAgentAccount,
+    signWithAgent,
+} from '@neardefi/shade-agent-js';
 // project imports
 import { sendTokens } from './evm-send.js';
 import { getHistoricalTransactionsTo } from './evm-receive.js';
@@ -77,13 +82,30 @@ async function startCron() {
 
     addCron(async () => {
         const txs = await getHistoricalTransactionsTo(USDC_ACCOUNT);
-        txs.forEach((tx) => {
-            sendTokens({
-                tokenAddress: PYUSD_ADDRESS,
-                sender: PYUSD_ACCOUNT,
-                receiver: tx.from,
-                amount: parseInt(tx.value),
+        txs.forEach(async (tx) => {
+            const evm_address = tx.from;
+            const token_address = USDC_ADDRESS;
+            const amount = tx.value;
+
+            await contractCall({
+                methodName: 'set_deposit',
+                args: {
+                    evm_address,
+                    token_address,
+                    amount,
+                },
             });
+
+            await sleep(1000);
+
+            const depositRes = await contractView({
+                methodName: 'get_deposit',
+                args: {
+                    evm_address,
+                },
+            });
+
+            console.log('depositRes', depositRes);
         });
     });
 
