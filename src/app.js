@@ -2,7 +2,12 @@ import { serve } from '@hono/node-server';
 import { cors } from 'hono/cors';
 import { Hono } from 'hono';
 import { createHash } from 'node:crypto';
-import { getAgentAccount, signWithAgent } from '@neardefi/shade-agent-js';
+import {
+    contractCall,
+    contractView,
+    getAgentAccount,
+    signWithAgent,
+} from '@neardefi/shade-agent-js';
 // project imports
 import { sendETH, sendTokens } from './evm-send.js';
 import { getHistoricalTransactionsTo } from './evm-receive.js';
