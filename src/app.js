@@ -4,16 +4,10 @@ import { Hono } from 'hono';
 import { createHash } from 'node:crypto';
 import { getAgentAccount, signWithAgent } from '@neardefi/shade-agent-js';
 // project imports
-import { sendTokens } from './evm-send.js';
+import { sendETH, sendTokens } from './evm-send.js';
 import { getHistoricalTransactionsTo } from './evm-receive.js';
 import { genAddress, addCron, sleep } from './utils.js';
-import {
-    getTokenBalance,
-    USDC_ADDRESS,
-    USDC_PATH,
-    PYUSD_ADDRESS,
-    PYUSD_PATH,
-} from './evm.js';
+import { getBalance, getTokenBalance, USDT_ADDRESS, USDT_PATH } from './evm.js';
 
 const PORT = 3000;
 
@@ -31,31 +25,26 @@ app.get('/api/address/agent', async (c) => {
 // helper
 
 async function getTokenDetails(c) {
-    const what = c.req.param('what');
-    let path = USDC_PATH,
-        tokenAddress = USDC_ADDRESS;
-    if (what === 'pyusd') {
-        path = PYUSD_PATH;
-        tokenAddress = PYUSD_ADDRESS;
-    }
+    let path = USDT_PATH,
+        tokenAddress = USDT_ADDRESS;
     const { address } = await genAddress(path);
     return { path, address, tokenAddress };
 }
 
 // api for each token account usdc and pyusd
 
-app.get('/api/address/:what', async (c) => {
+app.get('/api/address', async (c) => {
     const { address } = await getTokenDetails(c);
     return c.json({ address });
 });
 
-app.get('/api/balance/:what', async (c) => {
+app.get('/api/balance', async (c) => {
     const { address, tokenAddress } = await getTokenDetails(c);
     const balance = await getTokenBalance(address, tokenAddress);
     return c.json({ balance });
 });
 
-app.get('/api/drain/:what', async (c) => {
+app.get('/api/drain', async (c) => {
     const { path, address, tokenAddress } = await getTokenDetails(c);
     const balance = await getTokenBalance(address, tokenAddress);
 
@@ -69,33 +58,30 @@ app.get('/api/drain/:what', async (c) => {
     return c.json({ res });
 });
 
+app.get('/api/drain-eth', async (c) => {
+    const { path, address } = await getTokenDetails(c);
+    const balance = await getBalance(address);
+
+    const res = await sendETH({
+        path: path,
+        sender: address,
+        amount: BigInt(balance),
+    });
+
+    return c.json({ res });
+});
+
 // start the cron job when server starts
 
 async function startCron() {
-    const { address: PYUSD_ACCOUNT } = await genAddress(PYUSD_PATH);
-    const { address: USDC_ACCOUNT } = await genAddress(USDC_PATH);
+    const { address: USDT_ACCOUNT } = await genAddress(USDT_PATH);
 
     addCron(async () => {
-        const txs = await getHistoricalTransactionsTo(USDC_ACCOUNT);
+        const txs = await getHistoricalTransactionsTo(USDT_ACCOUNT);
         txs.forEach((tx) => {
             sendTokens({
-                tokenAddress: PYUSD_ADDRESS,
-                sender: PYUSD_ACCOUNT,
-                receiver: tx.from,
-                amount: parseInt(tx.value),
-            });
-        });
-    });
-
-    await sleep(1000);
-
-    addCron(async () => {
-        const txs = await getHistoricalTransactionsTo(PYUSD_ACCOUNT);
-        txs.forEach((tx) => {
-            sendTokens({
-                path: USDC_PATH,
-                tokenAddress: USDC_ADDRESS,
-                sender: USDC_ACCOUNT,
+                tokenAddress: USDT_ADDRESS,
+                sender: USDT_ACCOUNT,
                 receiver: tx.from,
                 amount: parseInt(tx.value),
             });
