@@ -1,17 +1,95 @@
 const { ETHERSCAN_API_KEY } = process.env;
+import { ethers, Interface, getAddress, verifyTypedData } from 'ethers';
 import { provider } from './evm.js';
 
+export async function verifyIntent({ address, message, signature }) {
+    console.log(`Verifying deposit from address: ${address}...`);
+
+    const domain = {
+        name: 'Sign Example',
+        version: '1',
+        chainId: 1,
+    };
+    const types = {
+        SignRequest: [
+            { name: 'deposit_tx_hash', type: 'string' },
+            { name: 'dest_address', type: 'string' },
+        ],
+    };
+
+    // Recover the signer address
+    const signerAddress = verifyTypedData(domain, types, message, signature);
+
+    return getAddress(signerAddress) === getAddress(address);
+}
+
+export async function getTokenTx(txHash) {
+    // ERC-20 Transfer event ABI
+    const ERC20_ABI = [
+        'event Transfer(address indexed from, address indexed to, uint256 value)',
+    ];
+    // Get transaction and receipt
+    const tx = await provider.getTransaction(txHash);
+    if (!tx) {
+        return null;
+    }
+    const receipt = await provider.getTransactionReceipt(txHash);
+
+    // Prepare the ERC20 iface for decoding logs
+    const iface = new Interface(ERC20_ABI);
+
+    // Filter transfer logs (ERC20)
+    const transferLogs = receipt.logs
+        .map((log) => {
+            try {
+                const parsed = iface.parseLog(log);
+                if (parsed.name === 'Transfer') {
+                    return { ...parsed, address: log.address };
+                }
+            } catch (e) {}
+            return null;
+        })
+        .filter((log) => log);
+
+    if (transferLogs.length === 0) {
+        return null;
+    }
+
+    // If there's more than one, you may need to add logic to select the right one.
+    // Here, we just return the first.
+    const log = transferLogs[0];
+
+    // Get token contract, sender, receiver, and value
+    const tokenAddress = log.address;
+    const [from, to, value] = log.args;
+
+    // Get decimals for pretty amount
+    const amount = value.toString();
+
+    return {
+        amount,
+        tokenAddress,
+        from,
+        to,
+    };
+}
+
+// USING ETHERSCAN API TO FETCH HISTORICAL TRANSACTIONS
+
 const CONFIRMATIONS = 2;
+const BLOCK_OFFSET = 10000;
 const seenTXs = [];
 
 export async function getHistoricalTransactionsTo(address) {
+    console.log(`Fetching historical transactions to ${address}...`);
+
     const blockNumber = await provider.getBlockNumber();
 
-    const url = `https://api-sepolia.etherscan.io/api?module=account
+    const url = `https://api.etherscan.io/api?module=account
 	&action=tokentx
 	&address=${address}
 	&sort=desc
-	&startblock=${blockNumber - 5}
+	&startblock=${blockNumber - BLOCK_OFFSET}
 	&endblock=${blockNumber}
 	&apikey=${ETHERSCAN_API_KEY}`;
     const response = await fetch(url);

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8" />
+	<title>MetaMask Sign Message Example with Two Fields</title>
+	<style>
+		body {
+			font-family: Arial, sans-serif;
+			max-width: 480px;
+			margin: 48px auto;
+		}
+
+		label,
+		input,
+		button {
+			display: block;
+			width: 100%;
+			margin: 12px 0;
+		}
+
+		input {
+			padding: 8px;
+		}
+
+		.result {
+			word-break: break-all;
+			background: #f8f8f8;
+			padding: 8px;
+			margin: 12px 0;
+		}
+	</style>
+</head>
+
+<body>
+	<h2>Deposit USDT</h2>
+	<button id="connectButton" type="button">Connect MetaMask</button>
+	<div id="account"></div>
+	<form id="depositForm" style="display:none;">
+		<label for="amount">Amount (USDT):</label>
+		<input id="amount" name="amount" type="number" step="0.000001" min="0.000001" required />
+		<button type="submit">Deposit</button>
+	</form>
+	<div id="depositOutput"></div>
+	<hr>
+	<h2>Sign Message</h2>
+	<form id="signForm" style="display:none;">
+		<label for="deposit_tx_hash">Deposit Tx Hash:</label>
+		<input id="deposit_tx_hash" name="deposit_tx_hash" placeholder="0x..." required />
+		<label for="dest_address">Destination Address:</label>
+		<input id="dest_address" name="dest_address" placeholder="0x..." required />
+		<button type="submit">Sign Message</button>
+	</form>
+	<div id="output"></div>
+	<hr>
+	<h2>Verify Deposit</h2>
+	<button id="verifyButton">Verify</button>
+
+
+
+	<script>
+		// --- USDT ERC-20 Data (Ethereum Mainnet)
+		const USDT_CONTRACT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+		const DEPOSIT_ADDRESS = "0x09ff5be31041ec96406eafa3abc9d098085381e9";
+
+		// Minimal encoder for transfer(address,uint256)
+		function encodeTransfer(to, value) {
+			// Method signature: transfer(address,uint256)
+			const methodId = "a9059cbb";
+			let cleanTo = to.toLowerCase().replace(/^0x/, "");
+			while (cleanTo.length < 64) cleanTo = "0" + cleanTo;
+			let cleanValue = value.toString(16);
+			while (cleanValue.length < 64) cleanValue = "0" + cleanValue;
+			return "0x" + methodId + cleanTo + cleanValue;
+		}
+
+		let currentAccount = null;
+		const connectButton = document.getElementById('connectButton');
+		const accountDiv = document.getElementById('account');
+		const depositForm = document.getElementById('depositForm');
+		const depositOutput = document.getElementById('depositOutput');
+		const signForm = document.getElementById('signForm');
+		const output = document.getElementById('output');
+
+		// --- MetaMask Connection
+		connectButton.onclick = async () => {
+			if (!window.ethereum) {
+				alert('MetaMask not installed');
+				return;
+			}
+			try {
+				const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+				if (accounts.length > 0) {
+					currentAccount = accounts[0];
+					accountDiv.textContent = `Connected: ${currentAccount}`;
+					depositForm.style.display = '';
+					signForm.style.display = '';
+					connectButton.disabled = true;
+				} else {
+					accountDiv.textContent = 'No accounts found.';
+				}
+			} catch (err) {
+				accountDiv.textContent = 'Could not connect to MetaMask';
+			}
+		};
+
+
+		// --- USDT Deposit Handler
+		depositForm.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			depositOutput.innerHTML = '';
+			if (!window.ethereum) {
+				depositOutput.innerHTML = '<div class="result">MetaMask is not installed.</div>';
+				return;
+			}
+			if (!currentAccount) {
+				depositOutput.innerHTML = '<div class="result">Please connect your wallet first.</div>';
+				return;
+			}
+			const amountInput = document.getElementById('amount').value;
+			try {
+				// USDT has 6 decimals
+				const amount = BigInt(Math.round(parseFloat(amountInput) * 1e6));
+				if (amount <= 0n) {
+					depositOutput.innerHTML = '<div class="result">Amount must be greater than 0.</div>';
+					return;
+				}
+				// Encode data for transfer(to, amount)
+				const data = encodeTransfer(DEPOSIT_ADDRESS, amount);
+
+				// Prepare tx object for MetaMask
+				const txParams = {
+					from: currentAccount,
+					to: USDT_CONTRACT,
+					value: "0x0",
+					data: data
+				};
+
+				// Prompt MetaMask
+				const txHash = await window.ethereum.request({
+					method: 'eth_sendTransaction',
+					params: [txParams]
+				});
+
+				depositOutput.innerHTML = `
+          <div class="result">
+            <strong>Tx Hash:</strong>
+            <a href="https://etherscan.io/tx/${txHash}" target="_blank">${txHash}</a>
+            <br>
+            <strong>Sent ${amountInput} USDT to:</strong><br>
+            ${DEPOSIT_ADDRESS}
+          </div>
+        `;
+
+				// Optionally autofill deposit_tx_hash in the sign form
+				document.getElementById('deposit_tx_hash').value = txHash;
+			} catch (err) {
+				depositOutput.innerHTML = `<div class="result">Error: ${err.message || err}</div>`;
+			}
+		});
+
+
+
+		signForm.addEventListener('submit', async (e) => {
+			e.preventDefault();
+			output.innerHTML = '';
+			if (!window.ethereum) {
+				output.innerHTML = '<div class="result">MetaMask is not installed.</div>';
+				return;
+			}
+			if (!currentAccount) {
+				output.innerHTML = '<div class="result">Please connect your wallet first.</div>';
+				return;
+			}
+
+			const deposit_tx_hash = document.getElementById('deposit_tx_hash').value;
+			const dest_address = document.getElementById('dest_address').value;
+
+			try {
+				const chainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
+				const chainId = Number(chainIdHex);
+
+				const message = {
+					deposit_tx_hash: deposit_tx_hash,
+					dest_address: dest_address,
+				}
+
+				const msgParams = JSON.stringify({
+					domain: {
+						name: "Sign Example",
+						version: "1",
+						chainId: chainId,
+					},
+					message,
+					primaryType: "SignRequest",
+					types: {
+						EIP712Domain: [
+							{ name: "name", type: "string" },
+							{ name: "version", type: "string" },
+							{ name: "chainId", type: "uint256" }
+						],
+						SignRequest: [
+							{ name: "deposit_tx_hash", type: "string" },
+							{ name: "dest_address", type: "string" }
+						]
+					}
+				});
+
+				const signature = await window.ethereum.request({
+					method: 'eth_signTypedData_v4',
+					params: [currentAccount, msgParams],
+				});
+
+				output.innerHTML = `
+          <div class="result"><strong>Signature:</strong><br>${signature}</div>
+          <div class="result"><strong>Signed by address:</strong><br>${currentAccount}</div>
+          <div class="result"><strong>Message:</strong><br><pre>${message}</pre></div>
+        `;
+			} catch (err) {
+				output.innerHTML = `<div class="result">Error: ${err.message || err}</div>`;
+			}
+		});
+
+
+		// skip to last step for testing
+
+		const address = currentAccount || '0x525521d79134822a342d330bd91DA67976569aF1';
+		const signature = "0x2c2452805abcc1cf0e97906c6727d8542c1c745e90ac243d3774a16584109ebd1252d87a3deba47eb42ca5b38c946c1d8c8ed48b24b0b5ae90af4da5633601bf1b";
+		const message = { "deposit_tx_hash": "0xe2a2b0f97cbbf233a23d33548e33ded6911848623992487325beab95eb6f7d27", "dest_address": "0x525521d79134822a342d330bd91DA67976569aF1" }
+
+		output.innerHTML = `
+          <div class="result"><strong>Signature:</strong><br>${signature}</div>
+          <div class="result"><strong>Signed by address:</strong><br>${address}</div>
+          <div class="result"><strong>Message:</strong><br><pre>${JSON.stringify(message)}</pre></div>
+        `;
+
+		document.getElementById('verifyButton').onclick = async () => {
+			const res = await fetch('/api/verifyDeposit', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					message, address, signature
+				})
+			}).json();
+
+			console.log(res)
+		};
+
+	</script>
+</body>
+
+</html>

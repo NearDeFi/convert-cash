@@ -22,7 +22,7 @@
     },
     "dependencies": {
         "@hono/node-server": "^1.14.2",
-        "@neardefi/shade-agent-js": "^0.2.1",
+        "@neardefi/shade-agent-js": "^0.2.3",
         "dotenv": "^16.5.0",
         "ethers": "^6.14.4",
         "hono": "^4.7.10",

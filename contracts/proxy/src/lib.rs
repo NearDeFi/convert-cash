@@ -1,13 +1,13 @@
 use near_sdk::{
     env::{self},
     near, require,
-    store::{IterableMap, IterableSet},
+    store::{IterableMap, IterableSet, Vector},
     AccountId, Gas, NearToken, PanicOnDefault, Promise,
 };
 
 mod ecdsa;
 mod external;
-mod store;
+mod intents;
 mod utils;
 
 #[near(serializers = [json, borsh])]
@@ -21,8 +21,10 @@ pub struct Worker {
 pub struct Contract {
     pub owner_id: AccountId,
     pub approved_codehashes: IterableSet<String>,
+    pub approved_solvers: IterableSet<AccountId>,
     pub worker_by_account_id: IterableMap<AccountId, Worker>,
-    pub deposit_by_evm_address: IterableMap<String, store::Deposit>,
+    pub solver_id_to_intent_index: IterableMap<AccountId, u32>,
+    pub intents: Vector<intents::Intent>,
 }
 
 #[near]
@@ -33,8 +35,10 @@ impl Contract {
         Self {
             owner_id,
             approved_codehashes: IterableSet::new(b"a"),
-            worker_by_account_id: IterableMap::new(b"b"),
-            deposit_by_evm_address: IterableMap::new(b"c"),
+            approved_solvers: IterableSet::new(b"b"),
+            worker_by_account_id: IterableMap::new(b"c"),
+            solver_id_to_intent_index: IterableMap::new(b"d"),
+            intents: Vector::new(b"e"),
         }
     }
 

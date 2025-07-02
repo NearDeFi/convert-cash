@@ -186,12 +186,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@neardefi/shade-agent-js@npm:^0.2.1":
-  version: 0.2.1
-  resolution: "@neardefi/shade-agent-js@npm:0.2.1"
+"@neardefi/shade-agent-js@npm:^0.2.3":
+  version: 0.2.3
+  resolution: "@neardefi/shade-agent-js@npm:0.2.3"
   bin:
     shade-agent-js: cli.js
-  checksum: 10c0/eda35a7f95bcc470e66f36986171035b1e36b50e16fa3dfb612ce7d7aac3a83b67e6ff1b502443c0d28455fb52fad8d67efae816f77ce444c3d29d167c5d0cd9
+  checksum: 10c0/bf4b17f550f4b2f7225eb1b7180205a554d6f7df1149e710a60a88b894d5745ec6bec9c15695436e7dcb2f669a8d54080511f91078f35e134ff6ada683fed53f
   languageName: node
   linkType: hard
 
@@ -543,7 +543,7 @@ __metadata:
   resolution: "docker@workspace:."
   dependencies:
     "@hono/node-server": "npm:^1.14.2"
-    "@neardefi/shade-agent-js": "npm:^0.2.1"
+    "@neardefi/shade-agent-js": "npm:^0.2.3"
     dotenv: "npm:^16.5.0"
     ethers: "npm:^6.14.4"
     hono: "npm:^4.7.10"
