@@ -7,13 +7,18 @@ impl Contract {
     pub fn request_liquidity(&mut self, receiver_id: AccountId, amount: U128) -> Promise {
         let solver_id = env::predecessor_account_id();
 
-        let deposit = self
-            .deposits_by_solver
-            .get(&solver_id)
-            .expect("No deposit found for this solver");
+        // will work or panic
+        let intent = self.get_intent_by_solver(solver_id.clone());
 
-        require!(deposit.state == State::Pending, "Deposit is not pending");
+        // they can only request liquidity if they have claimed the intent
+        require!(intent.state == State::Claimed, "Intent is not claimed");
 
-        self.ft_transfer_with_callback(USDT_CONTRACT, solver_id, receiver_id, amount, None)
+        self.internal_ft_transfer_with_callback(
+            solver_id,
+            USDT_CONTRACT.parse().unwrap(),
+            receiver_id,
+            amount,
+            None,
+        )
     }
 }

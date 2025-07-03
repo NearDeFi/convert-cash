@@ -1,5 +1,4 @@
-use near_sdk::ext_contract;
-use serde::Serialize;
+use crate::*;
 
 #[derive(Debug, Serialize)]
 pub struct SignRequest {

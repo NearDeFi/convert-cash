@@ -1,7 +1,7 @@
 use crate::*;
 
 #[near(serializers = [json, borsh])]
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum State {
     Deposited,
     Claimed,
@@ -14,14 +14,14 @@ pub enum State {
 #[near(serializers = [json, borsh])]
 #[derive(Clone)]
 pub struct Intent {
-    state: State,
-    amount: String,
-    hash: String,
-    src_token_address: String,
-    src_chain_id: u64,
-    dest_token_address: String,
-    dest_chain_id: u64,
-    dest_receiver_address: String,
+    pub state: State,
+    pub amount: String,
+    pub hash: String,
+    pub src_token_address: String,
+    pub src_chain_id: u64,
+    pub dest_token_address: String,
+    pub dest_chain_id: u64,
+    pub dest_receiver_address: String,
 }
 
 #[near]
@@ -85,14 +85,10 @@ impl Contract {
     }
 
     pub fn update_intent_state(&mut self, solver_id: AccountId, state: State) {
-        let index = self
-            .solver_id_to_intent_index
-            .get(&solver_id)
-            .expect("No intent index found for this solver");
-        let intent = self.intents.get(*index).unwrap().clone();
+        let (intent, index) = self.get_intent_and_index(solver_id);
 
         self.intents.replace(
-            *index,
+            index,
             Intent {
                 state,
                 ..intent.clone()
@@ -100,11 +96,19 @@ impl Contract {
         );
     }
 
-    pub fn get_intent_by_solver(&self, account_id: AccountId) -> Intent {
+    pub fn get_intent_by_solver(&self, solver_id: AccountId) -> Intent {
+        let (intent, _index) = self.get_intent_and_index(solver_id);
+        intent
+    }
+
+    // helper
+
+    fn get_intent_and_index(&self, solver_id: AccountId) -> (Intent, u32) {
         let index = self
             .solver_id_to_intent_index
-            .get(&account_id)
-            .expect("No intent index found for this solver");
-        self.intents.get(*index).unwrap().clone()
+            .get(&solver_id)
+            .expect("No intent index found for solver");
+        let intent = self.intents.get(*index).unwrap().clone();
+        (intent, *index)
     }
 }

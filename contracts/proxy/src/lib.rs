@@ -1,14 +1,20 @@
 use near_sdk::{
-    env::{self},
+    env, ext_contract,
+    json_types::U128,
     near, require,
     store::{IterableMap, IterableSet, Vector},
-    AccountId, Gas, NearToken, PanicOnDefault, Promise,
+    AccountId, Gas, NearToken, PanicOnDefault, Promise, PromiseError,
 };
+use serde::Serialize;
 
 mod ecdsa;
 mod external;
+mod ft;
 mod intents;
+mod solvers;
 mod utils;
+
+use intents::State;
 
 #[near(serializers = [json, borsh])]
 #[derive(Clone)]
