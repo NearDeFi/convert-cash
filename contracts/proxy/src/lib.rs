@@ -5,14 +5,11 @@ use near_sdk::{
     store::{IterableMap, IterableSet, Vector},
     AccountId, Gas, NearToken, PanicOnDefault, Promise, PromiseError,
 };
-use serde::Serialize;
 
-mod ecdsa;
-mod external;
+mod chainsig;
 mod ft;
 mod intents;
 mod solvers;
-mod utils;
 
 use intents::State;
 
@@ -74,10 +71,10 @@ impl Contract {
         true
     }
 
-    pub fn get_signature(&mut self, payload: Vec<u8>, path: String) -> Promise {
+    pub fn get_signature(&mut self, payload: String, path: String) -> Promise {
         self.require_approved_codehash();
 
-        ecdsa::get_sig(payload, path, 0)
+        chainsig::internal_request_signature(path, payload, "Ecdsa".to_owned())
     }
 
     // views
