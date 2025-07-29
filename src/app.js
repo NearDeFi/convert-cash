@@ -2,30 +2,28 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { cors } from 'hono/cors';
 import { Hono } from 'hono';
-import { createHash, verify } from 'node:crypto';
-import {
-    getAccount,
-    contractCall,
-    contractView,
-    getAgentAccount,
-    signWithAgent,
-} from '@neardefi/shade-agent-js';
+import { contractCall, contractView } from '@neardefi/shade-agent-js';
+
 // project imports
-import { sendETH, sendTokens } from './evm-send.js';
-import { verifyIntent, getTokenTx } from './evm-receive.js';
-import { genAddress } from './utils.js';
-import { getBalance, getTokenBalance, USDT_ADDRESS, USDT_PATH } from './evm.js';
-import { TRON_USDT_ADDRESS, TRON_CHAIN_ID } from './tron.js';
+import { verifyIntent, getTokenTx } from './evm.js';
+import { getEvmAddress, ETH_USDT_ADDRESS } from './evm.js';
+
+// project constants
+const TRON_ETH_USDT_ADDRESS = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+const TRON_CHAIN_ID = 728126428;
 
 // server setup
-
 const PORT = 3000;
-
 const app = new Hono();
-
 app.use('/*', cors());
 
-app.use('/static/*', serveStatic({ root: './' }));
+app.get('/api/evm-address', async (c) => {
+    const { address, publicKey } = await getEvmAddress();
+    return c.json({ address, publicKey });
+});
+
+// static page for making the intent
+app.use('/deposit/*', serveStatic({ root: './' }));
 
 app.post('/api/verifyIntent', async (c) => {
     const args = await c.req.json();
@@ -44,25 +42,25 @@ app.post('/api/verifyIntent', async (c) => {
 
     // check contract to see if intent already exists
     const getIntentsRes = await contractView({
-        methodName: 'get_new_intents',
+        methodName: 'get_intents',
         args: {},
     });
 
-    if (getIntentsRes.find((d) => d.hash === deposit_tx_hash)) {
+    if (get_intents.find((d) => d.hash === deposit_tx_hash)) {
         return c.json({ isVerified, error: 'intent already exists' });
     }
     console.log('getIntentsRes', getIntentsRes);
 
     // check if intent transaction is on chain
-    const { address, tokenAddress } = await getTokenDetails(); // USDT deposit address on Ethereum mainnet
+    const { address } = await getEvmAddress();
     const tx = await getTokenTx(deposit_tx_hash);
     console.log('tx', tx);
-    console.log('tx', senderAddress, address, tokenAddress);
+    console.log('tx', senderAddress, address, ETH_USDT_ADDRESS);
     if (
         !tx ||
         tx.from.toLowerCase() !== senderAddress.toLowerCase() ||
         tx.to.toLowerCase() !== address.toLowerCase() ||
-        tx.tokenAddress.toLowerCase() !== tokenAddress.toLowerCase()
+        tx.tokenAddress.toLowerCase() !== ETH_USDT_ADDRESS.toLowerCase()
     ) {
         return c.json({
             isVerified,
@@ -79,9 +77,9 @@ app.post('/api/verifyIntent', async (c) => {
             args: {
                 amount: tx.amount,
                 hash: deposit_tx_hash,
-                src_token_address: USDT_ADDRESS,
+                src_token_address: ETH_USDT_ADDRESS,
                 src_chain_id: 1,
-                dest_token_address: TRON_USDT_ADDRESS,
+                dest_token_address: TRON_ETH_USDT_ADDRESS,
                 dest_chain_id: TRON_CHAIN_ID,
                 dest_receiver_address: dest_address,
             },
@@ -98,61 +96,7 @@ app.post('/api/verifyIntent', async (c) => {
     return c.json({ isVerified, submitted, error });
 });
 
-// addresses
-
-app.get('/api/address/agent', async (c) => {
-    const res = await getAgentAccount();
-    return c.json(res);
-});
-
-// helper
-
-async function getTokenDetails() {
-    let path = USDT_PATH,
-        tokenAddress = USDT_ADDRESS;
-    const { address } = await genAddress(path);
-    return { path, address, tokenAddress };
-}
-
-// api for controlling tokens on Ethereum mainnet
-
-app.get('/api/address', async (c) => {
-    const { address } = await getTokenDetails();
-    return c.json({ address });
-});
-
-app.get('/api/balance', async (c) => {
-    const { address, tokenAddress } = await getTokenDetails();
-    const balance = await getTokenBalance(address, tokenAddress);
-    return c.json({ balance });
-});
-
-app.get('/api/drain', async (c) => {
-    const { path, address, tokenAddress } = await getTokenDetails();
-    const balance = await getTokenBalance(address, tokenAddress);
-
-    const res = await sendTokens({
-        path: path,
-        tokenAddress: tokenAddress,
-        sender: address,
-        amount: BigInt(balance),
-    });
-
-    return c.json({ res });
-});
-
-app.get('/api/drain-eth', async (c) => {
-    const { path, address } = await getTokenDetails(c);
-    const balance = await getBalance(address);
-
-    const res = await sendETH({
-        path: path,
-        sender: address,
-        amount: BigInt(balance),
-    });
-
-    return c.json({ res });
-});
+// start the server
 
 console.log('Server listening on port: ', PORT);
 

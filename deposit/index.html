@@ -5,63 +5,118 @@
 	<meta charset="UTF-8" />
 	<title>MetaMask Sign Message Example with Two Fields</title>
 	<style>
+		/* Modern System Font Stack (Bootstrap 5 Default) */
 		body {
-			font-family: Arial, sans-serif;
-			max-width: 480px;
-			margin: 48px auto;
+			font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+			max-width: 90vw;
+			margin: 2rem auto;
+			padding: 0 1.5rem;
+			background: #f8f9fa;
+			box-sizing: border-box;
 		}
 
-		label,
-		input,
-		button {
-			display: block;
+		.main-container {
 			width: 100%;
-			margin: 12px 0;
+			max-width: 600px;
+			margin: 0 auto;
+			background: white;
+			border-radius: 8px;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, .1);
+			padding: 1.5rem;
+		}
+
+		.form-group {
+			margin-bottom: 1.5rem;
+		}
+
+		label {
+			display: block;
+			margin-bottom: 0.75rem;
+			color: #495057;
+			font-weight: 500;
 		}
 
 		input {
-			padding: 8px;
+			font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+			width: calc(600px - 2.5rem);
+			padding: 0.875rem 1.25rem;
+			border: 1px solid #e9ecef;
+			border-radius: 4px;
+			transition: border-color 0.15s ease-in-out;
+			margin-bottom: 0.75rem;
+		}
+
+		input:focus {
+			border-color: #94d82d;
+			box-shadow: 0 0 0 3px rgba(148, 216, 45, 0.25);
+			outline: 0;
+		}
+
+		button {
+			font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+			width: 100%;
+			padding: 0.75rem;
+			margin-bottom: 0.75rem;
+			background-color: #94d82d;
+			color: white;
+			border: none;
+			border-radius: 8px;
+			font-weight: 500;
+			transition: all 0.2s cubic-bezier(.4, .0, 0.2, 1);
+		}
+
+		button:hover {
+			background-color: #7fd98a;
+			transform: translateY(-1px);
 		}
 
 		.result {
-			word-break: break-all;
-			background: #f8f8f8;
-			padding: 8px;
-			margin: 12px 0;
+			background: white;
+			border-radius: 8px;
+			padding: 1.5rem;
+			margin: 1.5rem 0;
+			word-break: break-word;
+			word-wrap: break-word;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, .05);
+			border: 1px solid #dee2e6;
 		}
 	</style>
 </head>
 
 <body>
-	<h2>Deposit USDT</h2>
-	<button id="connectButton" type="button">Connect MetaMask</button>
-	<div id="account"></div>
-	<form id="depositForm" style="display:none;">
-		<label for="amount">Amount (USDT):</label>
-		<input id="amount" name="amount" type="number" step="0.000001" min="0.000001" required />
-		<button type="submit">Deposit</button>
-	</form>
-	<div id="depositOutput"></div>
-	<hr>
-	<h2>Sign Message</h2>
-	<form id="signForm" style="display:none;">
-		<label for="deposit_tx_hash">Deposit Tx Hash:</label>
-		<input id="deposit_tx_hash" name="deposit_tx_hash" placeholder="0x..." required />
-		<label for="dest_address">Destination Address:</label>
-		<input id="dest_address" name="dest_address" placeholder="0x..." required />
-		<button type="submit">Sign Message</button>
-	</form>
-	<div id="output"></div>
-	<hr>
-	<h2>Verify Deposit</h2>
-	<button id="verifyButton">Verify</button>
+	<div class="main-container">
+		<h2>Swap ETH USDT to TRON</h2>
+		<button id="connectButton" type="button">Connect MetaMask</button>
+		<div id="account"></div>
+		<form id="depositForm" style="display:none;" class="form-group">
 
+		<h2>Step 1. Deposit USDT</h2>
+			<label for="amount">Amount (USDT):</label>
+			<input id="amount" name="amount" type="number" step="0.000001" min="0.000001" required />
+			<button type="submit">Deposit</button>
+		</form>
+		<div id="depositOutput"></div>
+		<form id="signForm" style="display:none;" class="form-group">
+		<hr>
+		<h2>Step 2. Sign Message</h2>
+			<label for="deposit_tx_hash">Deposit Tx Hash (on ETH mainnet):</label>
+			<input id="deposit_tx_hash" name="deposit_tx_hash" placeholder="0x..." required />
+			<label for="dest_address">Destination Address (on TRON mainnet):</label>
+			<input id="dest_address" name="dest_address" placeholder="T..." required />
+			<button type="submit">Sign Message</button>
+		</form>
+		<div id="output"></div>
+		<div id="verifyForm" style="display:none;" >
+			<hr>
+		<h2>Step 3. Verify Deposit</h2>
+		<button id="verifyButton">Verify</button>
+		</div>
+	</div>
 
 
 	<script>
 		// --- USDT ERC-20 Data (Ethereum Mainnet)
 		const USDT_CONTRACT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
-		const DEPOSIT_ADDRESS = "0x09ff5be31041ec96406eafa3abc9d098085381e9";
 
 		// Minimal encoder for transfer(address,uint256)
 		function encodeTransfer(to, value) {
@@ -95,7 +150,8 @@
 					accountDiv.textContent = `Connected: ${currentAccount}`;
 					depositForm.style.display = '';
 					signForm.style.display = '';
-					connectButton.disabled = true;
+					verifyForm.style.display = '';
+					connectButton.style.display = 'none';
 				} else {
 					accountDiv.textContent = 'No accounts found.';
 				}
@@ -125,8 +181,11 @@
 					depositOutput.innerHTML = '<div class="result">Amount must be greater than 0.</div>';
 					return;
 				}
+
+				const depositAddress = await fetch('/api/evm-address').then(res => res.json()).then(data => data.address);
+				console.log(`Deposit address: ${depositAddress}`);
 				// Encode data for transfer(to, amount)
-				const data = encodeTransfer(DEPOSIT_ADDRESS, amount);
+				const data = encodeTransfer(depositAddress, amount);
 
 				// Prepare tx object for MetaMask
 				const txParams = {
@@ -148,12 +207,13 @@
             <a href="https://etherscan.io/tx/${txHash}" target="_blank">${txHash}</a>
             <br>
             <strong>Sent ${amountInput} USDT to:</strong><br>
-            ${DEPOSIT_ADDRESS}
+            ${depositAddress}
           </div>
         `;
 
-				// Optionally autofill deposit_tx_hash in the sign form
 				document.getElementById('deposit_tx_hash').value = txHash;
+
+					signForm.style.display = '';
 			} catch (err) {
 				depositOutput.innerHTML = `<div class="result">Error: ${err.message || err}</div>`;
 			}
@@ -161,6 +221,7 @@
 
 
 
+		// --- Sign Message Handler
 		signForm.addEventListener('submit', async (e) => {
 			e.preventDefault();
 			output.innerHTML = '';
@@ -216,6 +277,7 @@
           <div class="result"><strong>Signed by address:</strong><br>${currentAccount}</div>
           <div class="result"><strong>Message:</strong><br><pre>${message}</pre></div>
         `;
+				verifyForm.style.display = '';
 			} catch (err) {
 				output.innerHTML = `<div class="result">Error: ${err.message || err}</div>`;
 			}
@@ -224,18 +286,21 @@
 
 		// skip to last step for testing
 
-		const address = currentAccount || '0x525521d79134822a342d330bd91DA67976569aF1';
-		const signature = "0x2c2452805abcc1cf0e97906c6727d8542c1c745e90ac243d3774a16584109ebd1252d87a3deba47eb42ca5b38c946c1d8c8ed48b24b0b5ae90af4da5633601bf1b";
-		const message = { "deposit_tx_hash": "0xe2a2b0f97cbbf233a23d33548e33ded6911848623992487325beab95eb6f7d27", "dest_address": "0x525521d79134822a342d330bd91DA67976569aF1" }
+		// const address = currentAccount || '0x525521d79134822a342d330bd91DA67976569aF1';
+		// const signature = "0x2c2452805abcc1cf0e97906c6727d8542c1c745e90ac243d3774a16584109ebd1252d87a3deba47eb42ca5b38c946c1d8c8ed48b24b0b5ae90af4da5633601bf1b";
+		// const message = { "deposit_tx_hash": "0xe2a2b0f97cbbf233a23d33548e33ded6911848623992487325beab95eb6f7d27", "dest_address": "0x525521d79134822a342d330bd91DA67976569aF1" }
 
-		output.innerHTML = `
-          <div class="result"><strong>Signature:</strong><br>${signature}</div>
-          <div class="result"><strong>Signed by address:</strong><br>${address}</div>
-          <div class="result"><strong>Message:</strong><br><pre>${JSON.stringify(message)}</pre></div>
-        `;
+		// output.innerHTML = `
+        //   <div class="result"><strong>Signature:</strong><br>${signature}</div>
+        //   <div class="result"><strong>Signed by address:</strong><br>${address}</div>
+        //   <div class="result"><strong>Message:</strong><br>${JSON.stringify(message)}</div>
+        // `;
 
+		// remove this when not testing
+
+		// --- Call Shade Agent to verify the deposit
 		document.getElementById('verifyButton').onclick = async () => {
-			const res = await fetch('/api/verifyDeposit', {
+			const res = await fetch('/api/verifyIntent', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'

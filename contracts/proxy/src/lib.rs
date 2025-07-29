@@ -1,13 +1,10 @@
 use near_sdk::{
-    env, ext_contract,
-    json_types::U128,
-    near, require,
+    env, ext_contract, near, require,
     store::{IterableMap, IterableSet, Vector},
     AccountId, Gas, NearToken, PanicOnDefault, Promise, PromiseError,
 };
 
 mod chainsig;
-mod ft;
 mod intents;
 mod solvers;
 
@@ -71,10 +68,10 @@ impl Contract {
         true
     }
 
-    pub fn get_signature(&mut self, payload: String, path: String) -> Promise {
-        self.require_approved_codehash();
+    pub fn get_signature(&mut self, payload: String, path: String, key_type: String) -> Promise {
+        // self.require_approved_codehash();
 
-        chainsig::internal_request_signature(path, payload, "Ecdsa".to_owned())
+        chainsig::internal_request_signature(path, payload, key_type)
     }
 
     // views
