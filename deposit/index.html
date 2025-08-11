@@ -90,15 +90,15 @@
 		<div id="account"></div>
 		<form id="depositForm" style="display:none;" class="form-group">
 
-		<h2>Step 1. Deposit USDT</h2>
+			<h2>Step 1. Deposit USDT</h2>
 			<label for="amount">Amount (USDT):</label>
 			<input id="amount" name="amount" type="number" step="0.000001" min="0.000001" required />
 			<button type="submit">Deposit</button>
 		</form>
 		<div id="depositOutput"></div>
 		<form id="signForm" style="display:none;" class="form-group">
-		<hr>
-		<h2>Step 2. Sign Message</h2>
+			<hr>
+			<h2>Step 2. Sign Message</h2>
 			<label for="deposit_tx_hash">Deposit Tx Hash (on ETH mainnet):</label>
 			<input id="deposit_tx_hash" name="deposit_tx_hash" placeholder="0x..." required />
 			<label for="dest_address">Destination Address (on TRON mainnet):</label>
@@ -106,11 +106,12 @@
 			<button type="submit">Sign Message</button>
 		</form>
 		<div id="output"></div>
-		<div id="verifyForm" style="display:none;" >
+		<!-- <div id="verifyForm" style="display:none;">
 			<hr>
-		<h2>Step 3. Verify Deposit</h2>
-		<button id="verifyButton">Verify</button>
+			<h2>Step 3. Verify Deposit</h2>
+			<button id="verifyButton">Verify</button>
 		</div>
+		<div id="verifyOutput"></div> -->
 	</div>
 
 
@@ -136,6 +137,8 @@
 		const depositOutput = document.getElementById('depositOutput');
 		const signForm = document.getElementById('signForm');
 		const output = document.getElementById('output');
+
+		let verifyAddress, verifySignature, verifyMessage;
 
 		// --- MetaMask Connection
 		connectButton.onclick = async () => {
@@ -213,7 +216,7 @@
 
 				document.getElementById('deposit_tx_hash').value = txHash;
 
-					signForm.style.display = '';
+				signForm.style.display = '';
 			} catch (err) {
 				depositOutput.innerHTML = `<div class="result">Error: ${err.message || err}</div>`;
 			}
@@ -275,9 +278,39 @@
 				output.innerHTML = `
           <div class="result"><strong>Signature:</strong><br>${signature}</div>
           <div class="result"><strong>Signed by address:</strong><br>${currentAccount}</div>
-          <div class="result"><strong>Message:</strong><br><pre>${message}</pre></div>
+          <div class="result"><strong>Message:</strong><br><pre>${JSON.stringify(message)}</pre></div>
         `;
 				verifyForm.style.display = '';
+
+				verifyAddress = currentAccount;
+				verifySignature = signature;
+				verifyMessage = message;
+
+
+
+				// Verify the intent
+
+
+				try {
+					const res = await fetch('/api/verifyIntent', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							message: verifyMessage, address: verifyAddress, signature: verifySignature
+						})
+					}).then((r) => r.json())
+
+					if (!res.isVerified) {
+						document.getElementById('verifyOutput').innerHTML = `<div class="result">Verification failed: ${res.error}</div>`;
+					} else {
+						document.getElementById('verifyOutput').innerHTML = `<div class="result">Deposit verified successfully!</div>`;
+					}
+				} catch (err) {
+					document.getElementById('verifyOutput').innerHTML = `<div class="result">Error: ${err.message || err}</div>`;
+				}
+
 			} catch (err) {
 				output.innerHTML = `<div class="result">Error: ${err.message || err}</div>`;
 			}
@@ -291,27 +324,20 @@
 		// const message = { "deposit_tx_hash": "0xe2a2b0f97cbbf233a23d33548e33ded6911848623992487325beab95eb6f7d27", "dest_address": "0x525521d79134822a342d330bd91DA67976569aF1" }
 
 		// output.innerHTML = `
-        //   <div class="result"><strong>Signature:</strong><br>${signature}</div>
-        //   <div class="result"><strong>Signed by address:</strong><br>${address}</div>
-        //   <div class="result"><strong>Message:</strong><br>${JSON.stringify(message)}</div>
-        // `;
+		//   <div class="result"><strong>Signature:</strong><br>${signature}</div>
+		//   <div class="result"><strong>Signed by address:</strong><br>${address}</div>
+		//   <div class="result"><strong>Message:</strong><br>${JSON.stringify(message)}</div>
+		// `;
 
 		// remove this when not testing
 
-		// --- Call Shade Agent to verify the deposit
-		document.getElementById('verifyButton').onclick = async () => {
-			const res = await fetch('/api/verifyIntent', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					message, address, signature
-				})
-			}).json();
+		// protect this button from a double click, do we need it after user signs
 
-			console.log(res)
-		};
+		// --- Call Shade Agent to verify the deposit
+		// document.getElementById('verifyButton').onclick = async () => {
+
+			
+		// };
 
 	</script>
 </body>

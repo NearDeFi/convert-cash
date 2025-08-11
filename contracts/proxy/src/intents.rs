@@ -6,17 +6,25 @@ pub enum State {
     Deposited,
     Claimed,
     LiquidityProvided,
+    LiquidityCredited,
+    WithdrawRequested,
+    CompleteSwap,
+    CheckSwapComplete,
     SwapComplete,
     UserLiquidityProvided,
+    ReturnLiquidity,
     LiquidityReturned,
+    IntentComplete,
 }
 
 #[near(serializers = [json, borsh])]
 #[derive(Clone)]
 pub struct Intent {
+    pub created: u64,
     pub state: State,
     pub amount: String,
-    pub hash: String,
+    pub deposit_hash: String,
+    pub swap_hash: String,
     pub src_token_address: String,
     pub src_chain_id: u64,
     pub dest_token_address: String,
@@ -29,7 +37,7 @@ impl Contract {
     pub fn new_intent(
         &mut self,
         amount: String,
-        hash: String,
+        deposit_hash: String,
         src_token_address: String,
         src_chain_id: u64,
         dest_token_address: String,
@@ -38,13 +46,15 @@ impl Contract {
     ) {
         // TODO require intent agent
 
-        let found = self.intents.iter().find(|d| d.hash == hash);
+        let found = self.intents.iter().find(|d| d.deposit_hash == deposit_hash);
         require!(found.is_none(), "Intent with this hash already exists");
 
         self.intents.push(Intent {
+            created: env::block_timestamp(),
             state: State::Deposited,
             amount,
-            hash,
+            deposit_hash,
+            swap_hash: "".to_owned(),
             src_token_address,
             src_chain_id,
             dest_token_address,
@@ -64,6 +74,7 @@ impl Contract {
         self.intents.iter().collect()
     }
 
+    // TODO make only intents in deposited state
     pub fn claim_intent(&mut self, index: u32) {
         let solver_id = env::predecessor_account_id();
         // require!(
@@ -91,6 +102,18 @@ impl Contract {
             index,
             Intent {
                 state,
+                ..intent.clone()
+            },
+        );
+    }
+
+    pub fn update_swap_hash(&mut self, solver_id: AccountId, swap_hash: String) {
+        let (intent, index) = self.get_intent_and_index(solver_id);
+
+        self.intents.replace(
+            index,
+            Intent {
+                swap_hash,
                 ..intent.clone()
             },
         );

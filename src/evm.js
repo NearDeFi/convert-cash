@@ -3,7 +3,7 @@ import { baseDecode } from '@near-js/utils';
 import { viewFunction } from './near.js';
 import keccak from 'keccak';
 
-export const ETH_PATH = `eth-1`;
+export const ETH_PATH = `evm-1`;
 export const ETH_USDT_ADDRESS = `0xdAC17F958D2ee523a2206206994597C13D831ec7`;
 export const ETH_CHAIN_ID = 1;
 

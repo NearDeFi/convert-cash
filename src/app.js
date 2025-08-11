@@ -46,7 +46,7 @@ app.post('/api/verifyIntent', async (c) => {
         args: {},
     });
 
-    if (get_intents.find((d) => d.hash === deposit_tx_hash)) {
+    if (getIntentsRes.find((d) => d.hash === deposit_tx_hash)) {
         return c.json({ isVerified, error: 'intent already exists' });
     }
     console.log('getIntentsRes', getIntentsRes);
@@ -70,13 +70,14 @@ app.post('/api/verifyIntent', async (c) => {
     }
 
     // submit intent to contract
-    let sumitted, error;
+    let submitted = false,
+        error = null;
     try {
         await contractCall({
             methodName: 'new_intent',
             args: {
                 amount: tx.amount,
-                hash: deposit_tx_hash,
+                deposit_hash: deposit_tx_hash,
                 src_token_address: ETH_USDT_ADDRESS,
                 src_chain_id: 1,
                 dest_token_address: TRON_ETH_USDT_ADDRESS,
@@ -84,7 +85,7 @@ app.post('/api/verifyIntent', async (c) => {
                 dest_receiver_address: dest_address,
             },
         });
-        sumitted = true;
+        submitted = true;
     } catch (e) {
         console.error('Error submitting intent:', e.message);
         error = /already exists/.test(e.message)
