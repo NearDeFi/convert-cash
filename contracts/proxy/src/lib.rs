@@ -1,7 +1,7 @@
 use near_sdk::{
-    env, ext_contract, near, require,
+    env, near, require,
     store::{IterableMap, IterableSet, Vector},
-    AccountId, Gas, NearToken, PanicOnDefault, Promise, PromiseError,
+    AccountId, Gas, NearToken, PanicOnDefault, Promise,
 };
 
 mod chainsig;
@@ -54,11 +54,11 @@ impl Contract {
 
     /// will throw on client if worker agent is not registered with a codehash in self.approved_codehashes
     pub fn require_approved_codehash(&mut self) {
-        let worker = self.get_worker(env::predecessor_account_id());
+        let worker = self.get_agent(env::predecessor_account_id());
         require!(self.approved_codehashes.contains(&worker.codehash));
     }
 
-    pub fn register_worker(&mut self, codehash: String) -> bool {
+    pub fn register_agent(&mut self, codehash: String) -> bool {
         // THIS IS A LOCAL DEV CONTRACT, SKIPPING ATTESTATION CHECKS
 
         let predecessor = env::predecessor_account_id();
@@ -68,7 +68,12 @@ impl Contract {
         true
     }
 
-    pub fn get_signature(&mut self, payload: String, path: String, key_type: String) -> Promise {
+    pub fn request_signature(
+        &mut self,
+        path: String,
+        payload: String,
+        key_type: String,
+    ) -> Promise {
         // self.require_approved_codehash();
 
         chainsig::internal_request_signature(path, payload, key_type)
@@ -76,7 +81,7 @@ impl Contract {
 
     // views
 
-    pub fn get_worker(&self, account_id: AccountId) -> Worker {
+    pub fn get_agent(&self, account_id: AccountId) -> Worker {
         self.worker_by_account_id
             .get(&account_id)
             .expect("no worker found")

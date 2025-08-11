@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { cors } from 'hono/cors';
 import { Hono } from 'hono';
-import { contractCall, contractView } from '@neardefi/shade-agent-js';
+import { agentCall, agentView } from '@neardefi/shade-agent-js';
 
 // project imports
 import { verifyIntent, getTokenTx } from './evm.js';
@@ -20,6 +20,28 @@ app.use('/*', cors());
 app.get('/api/evm-address', async (c) => {
     const { address, publicKey } = await getEvmAddress();
     return c.json({ address, publicKey });
+});
+app.get('/api/get-intents', async (c) => {
+    // check contract to see if intent already exists
+    const getIntentsRes = await agentView({
+        methodName: 'get_intents',
+        args: {},
+    });
+    return c.json({ getIntentsRes });
+});
+
+app.get('/api/test-sign', async (c) => {
+    // check contract to see if intent already exists
+    const sigRes = await agentCall({
+        methodName: 'request_signature',
+        args: {
+            path: 'foo',
+            payload:
+                '74ce137697637a6181681d3210f66fbe6516a4c4d1234471e38986a1d2ae77e5',
+            key_type: 'Ecdsa',
+        },
+    });
+    return c.json({ sigRes });
 });
 
 // static page for making the intent
@@ -41,7 +63,7 @@ app.post('/api/verifyIntent', async (c) => {
     } = args;
 
     // check contract to see if intent already exists
-    const getIntentsRes = await contractView({
+    const getIntentsRes = await agentView({
         methodName: 'get_intents',
         args: {},
     });
@@ -73,7 +95,7 @@ app.post('/api/verifyIntent', async (c) => {
     let submitted = false,
         error = null;
     try {
-        await contractCall({
+        await agentCall({
             methodName: 'new_intent',
             args: {
                 amount: tx.amount,
